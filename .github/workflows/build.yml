@@ -2,8 +2,8 @@ name: Android CI Build
 
 on:
   push:
-    branches: [ "main" ] # 当你提交代码到 main 分支时自动触发打包
-  workflow_dispatch:     # 允许你在网页上手动点击按钮触发打包
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,19 +19,18 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # GitHub Actions 自带打好安卓框架环境，我们用极其精简的指令直接打包
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    # 初始化配置并执行 Debug 编译命令
-    - name: Build with Gradle
-      run: |
-        gradle init --type basic
-        gradle assembleDebug --no-daemon
+    # 注意：这里我们使用内置的 gradle-build-action 来自动管理和运行编译，更稳定
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
 
-    # 将生成的 APK 安装包作为成品上传到网页提供下载
+    - name: Build with Gradle
+      run: ./gradlew assembleDebug --no-daemon
+
     - name: Upload APK Artifact
-      uses: actions/artifacts@v4
+      uses: actions/upload-artifact@v4
       with:
         name: my-app-apk
         path: '**/build/outputs/apk/debug/*.apk'
