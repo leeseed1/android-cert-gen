@@ -3,8 +3,11 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
-        // 兼容 Groovy 和 Kotlin 的双通用写法，直接用字符串传参
-        maven { url = "https://jetbrains.space" }
+        // 兼容 Groovy 的写法，使用闭包和 url 属性
+        maven {
+            url 'https://jetbrains.space'
+        }
     }
 }
+
 rootProject.name = "CertGenerator"
