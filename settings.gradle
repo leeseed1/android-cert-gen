@@ -3,8 +3,8 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
-        // 修正点：将 maven("...") 改为标准的 MavenArtifactRepository 写法
-        maven { url = java.net.URI("https://jetbrains.space") }
+        // 兼容 Groovy 和 Kotlin 的双通用写法，直接用字符串传参
+        maven { url = "https://jetbrains.space" }
     }
 }
 rootProject.name = "CertGenerator"
