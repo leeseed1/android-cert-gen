@@ -10,14 +10,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import androidx.compose.ui.window.rememberWindowState // 1. 新增导入
+import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
 fun main() = application {
-    // 2. 使用 rememberWindowState 来定义窗口的初始大小
     val windowState = rememberWindowState(width = 600.dp, height = 500.dp)
 
     Window(onCloseRequest = ::exitApplication, title = "自签名证书生成器", state = windowState) {
@@ -92,7 +91,8 @@ fun CertGeneratorScreen() {
             modifier = Modifier.fillMaxWidth()
         ) {
             if (isGenerating) {
-                CircularProgressIndicator(size = 20.dp, color = MaterialTheme.colors.onPrimary)
+                // 修改了这里：使用 Modifier.size() 替代 size 参数
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colors.onPrimary)
             } else {
                 Text("开始生成并保存证书")
             }
