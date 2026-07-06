@@ -1,0 +1,50 @@
+name: Java CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    # --- 新增步骤：查找并设置 WIX 环境变量 ---
+    - name: Find and set WIX environment variable
+      run: |
+        $wixPath = Get-ChildItem -Path "$env:GITHUB_WORKSPACE/build/compose/binaries/" -Directory | Where-Object { $_.Name -like "*wix*" } | Select-Object -First 1
+        if ($wixPath) {
+          echo "WIX=$($wixPath.FullName)" >> $env:GITHUB_ENV
+          Write-Output "Found WIX at: $($wixPath.FullName)"
+        } else {
+          Write-Output "WIX directory not found in expected location."
+          # 如果在预期位置没找到，尝试在更广泛的范围内查找
+          $wixPathFallback = Get-ChildItem -Path "$env:GITHUB_WORKSPACE/" -Recurse -Directory | Where-Object { $_.Name -like "*wix*" -and $_.FullName -match "binaries" } | Select-Object -First 1
+          if ($wixPathFallback) {
+             echo "WIX=$($wixPathFallback.FullName)" >> $env:GITHUB_ENV
+             Write-Output "Found WIX fallback at: $($wixPathFallback.FullName)"
+          } else {
+             Write-Output "FATAL ERROR: Could not locate WIX directory."
+             exit 1
+          }
+        }
+      shell: pwsh
+    # --- 结束新增步骤 ---
+
+    - name: Build with Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        arguments: createDistributable --no-daemon
