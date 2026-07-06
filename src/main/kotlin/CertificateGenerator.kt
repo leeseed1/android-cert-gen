@@ -31,9 +31,11 @@ object CertificateGenerator {
         certBuilder.addExtension(Extension.keyUsage, true, KeyUsage(KeyUsage.digitalSignature or KeyUsage.keyEncipherment or KeyUsage.keyCertSign))
         certBuilder.addExtension(Extension.extendedKeyUsage, false, ExtendedKeyUsage(KeyPurposeId.id_kp_serverAuth))
 
+        // 修正部分：使用正确的 Extension.subjectAlternativeName 和 GeneralNames
         val generalName = GeneralName(GeneralName.iPAddress, ipAddress)
-        val generalNamesSequence = DERSequence(generalName)
-        certBuilder.addExtension(Extension.subjectAnObject, false, generalNamesSequence)
+        // 将单个 GeneralName 包装到 GeneralNames 中
+        val generalNames = GeneralNames(generalName) 
+        certBuilder.addExtension(Extension.subjectAlternativeName, false, generalNames)
 
         val signer = JcaContentSignerBuilder("SHA256withRSA").build(keyPair.private)
         val holder = certBuilder.build(signer)
