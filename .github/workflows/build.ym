@@ -1,0 +1,37 @@
+name: Windows EXE Build
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # 核心修改：使用 Windows 最新版云端服务器环境来编译
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4.2.2
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4.4.0
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4.3.0
+      with:
+        gradle-version: 8.5
+
+    # 执行 JetBrains 官方推荐的桌面端打包命令，它会自动生成打包好的 exe 安装程序
+    - name: Package Windows EXE
+      run: gradle packageDistributionForCurrentOS --no-daemon
+
+    # 将生成的 exe 文件作为成品上传到网页提供下载
+    - name: Upload EXE Artifact
+      uses: actions/upload-artifact@v4.6.1
+      with:
+        name: my-pc-app-exe
+        path: 'build/compose/binaries/main/exe/*.exe'
