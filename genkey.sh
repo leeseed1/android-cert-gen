@@ -19,7 +19,6 @@ TARGET_DIR="/selfsign"
 mkdir -p "$TARGET_DIR"
 
 # 临时生成 openssl 配置文件
-# 核心修改：在证书中同时注入服务器域名(SAN)和CA属性(CA:true)，使其能独立导入手机并生效
 CONF_FILE=$(mktemp)
 cat <<EOF > "$CONF_FILE"
 [req]
@@ -62,10 +61,10 @@ openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
   -keyout "$RSA_KEY" -out "$RSA_CERT" \
   -config "$CONF_FILE" -extensions v3_independent 2>/dev/null
 
-# 提取指纹并保存至 txt
-openssl x509 -noout -fingerprint -sha256 -in "$RSA_CERT" > "$RSA_TXT"
-echo "--> RSA 2048 SHA-256 指纹 (已保存至 $RSA_TXT):"
-cat "$RSA_TXT"
+# 使用 tee 确保屏幕显示的同时 100% 写入文件
+echo "--> RSA 2048 SHA-256 指纹:"
+openssl x509 -noout -fingerprint -sha256 -in "$RSA_CERT" | tee "$RSA_TXT"
+echo "已成功保存至: $RSA_TXT"
 echo ""
 
 # ==================== 2. 独立 ECDSA prime256v1 证书 ====================
@@ -78,10 +77,10 @@ openssl req -x509 -nodes -days 3650 -newkey ec:<(openssl ecparam -name prime256v
   -keyout "$ECDSA_KEY" -out "$ECDSA_CERT" \
   -config "$CONF_FILE" -extensions v3_independent 2>/dev/null
 
-# 提取指纹并保存至 txt
-openssl x509 -noout -fingerprint -sha256 -in "$ECDSA_CERT" > "$ECDSA_TXT"
-echo "--> ECDSA prime256v1 SHA-256 指纹 (已保存至 $ECDSA_TXT):"
-cat "$ECDSA_TXT"
+# 使用 tee 确保屏幕显示的同时 100% 写入文件
+echo "--> ECDSA prime256v1 SHA-256 指纹:"
+openssl x509 -noout -fingerprint -sha256 -in "$ECDSA_CERT" | tee "$ECDSA_TXT"
+echo "已成功保存至: $ECDSA_TXT"
 echo ""
 
 # ==================== 3. 独立 Ed25519 证书 ====================
@@ -95,10 +94,10 @@ openssl genpkey -algorithm ed25519 -out "$ED_KEY" 2>/dev/null
 openssl req -x509 -nodes -days 3650 -key "$ED_KEY" -out "$ED_CERT" \
   -config "$CONF_FILE" -extensions v3_independent 2>/dev/null
 
-# 提取指纹并保存至 txt
-openssl x509 -noout -fingerprint -sha256 -in "$ED_CERT" > "$ED_TXT"
-echo "--> Ed25519 SHA-256 指纹 (已保存至 $ED_TXT):"
-cat "$ED_TXT"
+# 使用 tee 确保屏幕显示的同时 100% 写入文件
+echo "--> Ed25519 SHA-256 指纹:"
+openssl x509 -noout -fingerprint -sha256 -in "$ED_CERT" | tee "$ED_TXT"
+echo "已成功保存至: $ED_TXT"
 echo ""
 
 # 清理临时配置文件
