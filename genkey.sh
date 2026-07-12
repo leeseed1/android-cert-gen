@@ -56,47 +56,56 @@ echo "--------------------------------------------------"
 echo "[1/3] 正在生成独立 RSA 2048 证书..."
 RSA_KEY="$TARGET_DIR/rsa_2048.key"
 RSA_CERT="$TARGET_DIR/rsa_2048.crt"
+RSA_TXT="$TARGET_DIR/rsa_2048_sha256.txt"
 
 openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
   -keyout "$RSA_KEY" -out "$RSA_CERT" \
   -config "$CONF_FILE" -extensions v3_independent 2>/dev/null
 
-echo "--> RSA 2048 SHA-256 指纹:"
-openssl x509 -noout -fingerprint -sha256 -in "$RSA_CERT"
+# 提取指纹并保存至 txt
+openssl x509 -noout -fingerprint -sha256 -in "$RSA_CERT" > "$RSA_TXT"
+echo "--> RSA 2048 SHA-256 指纹 (已保存至 $RSA_TXT):"
+cat "$RSA_TXT"
 echo ""
 
 # ==================== 2. 独立 ECDSA prime256v1 证书 ====================
 echo "[2/3] 正在生成独立 ECDSA (prime256v1) 证书..."
 ECDSA_KEY="$TARGET_DIR/ecdsa_p256.key"
 ECDSA_CERT="$TARGET_DIR/ecdsa_p256.crt"
+ECDSA_TXT="$TARGET_DIR/ecdsa_p256_sha256.txt"
 
 openssl req -x509 -nodes -days 3650 -newkey ec:<(openssl ecparam -name prime256v1) \
   -keyout "$ECDSA_KEY" -out "$ECDSA_CERT" \
   -config "$CONF_FILE" -extensions v3_independent 2>/dev/null
 
-echo "--> ECDSA prime256v1 SHA-256 指纹:"
-openssl x509 -noout -fingerprint -sha256 -in "$ECDSA_CERT"
+# 提取指纹并保存至 txt
+openssl x509 -noout -fingerprint -sha256 -in "$ECDSA_CERT" > "$ECDSA_TXT"
+echo "--> ECDSA prime256v1 SHA-256 指纹 (已保存至 $ECDSA_TXT):"
+cat "$ECDSA_TXT"
 echo ""
 
 # ==================== 3. 独立 Ed25519 证书 ====================
 echo "[3/3] 正在生成独立 Ed25519 证书..."
 ED_KEY="$TARGET_DIR/ed25519.key"
 ED_CERT="$TARGET_DIR/ed25519.crt"
+ED_TXT="$TARGET_DIR/ed25519_sha256.txt"
 
 # 分步执行以确保老版本 OpenSSL 的兼容性，同时赋予其自签 CA 属性
 openssl genpkey -algorithm ed25519 -out "$ED_KEY" 2>/dev/null
 openssl req -x509 -nodes -days 3650 -key "$ED_KEY" -out "$ED_CERT" \
   -config "$CONF_FILE" -extensions v3_independent 2>/dev/null
 
-echo "--> Ed25519 SHA-256 指纹:"
-openssl x509 -noout -fingerprint -sha256 -in "$ED_CERT"
+# 提取指纹并保存至 txt
+openssl x509 -noout -fingerprint -sha256 -in "$ED_CERT" > "$ED_TXT"
+echo "--> Ed25519 SHA-256 指纹 (已保存至 $ED_TXT):"
+cat "$ED_TXT"
 echo ""
 
 # 清理临时配置文件
 rm -f "$CONF_FILE"
 
 echo "--------------------------------------------------"
-echo "所有独立证书已成功生成！"
+echo "所有独立证书及指纹文件已成功生成！"
 echo "使用说明：如果您在 VPS 服务端配置了哪个证书，"
 echo "就请直接将对应的 .crt 文件发送到手机端导入并信任。"
 echo "--------------------------------------------------"
