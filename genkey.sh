@@ -14,6 +14,14 @@ if [ -z "$TARGET_HOST" ]; then
   exit 1
 fi
 
+# 交互式输入自定义名称（用于手机上显示的证书名字）
+read -p "请输入证书的自定义名称 (例如: MyHomeServer, 留空默认使用IP/域名): " CERT_NAME
+
+# 如果用户直接回车留空，就默认用 IP 或域名作为名称
+if [ -z "$CERT_NAME" ]; then
+  CERT_NAME="$TARGET_HOST"
+fi
+
 # 定义保存目录（根目录下的 selfsign）
 TARGET_DIR="/selfsign"
 mkdir -p "$TARGET_DIR"
@@ -28,6 +36,8 @@ prompt = no
 
 [req_distinguished_name]
 CN = $TARGET_HOST
+O = $CERT_NAME
+OU = $CERT_NAME
 
 [v3_independent]
 subjectKeyIdentifier = hash
