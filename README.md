@@ -9,3 +9,5 @@
 
 附件是本地运行的。
 下面的命令是vps运行的
+curl -sSL -o genkey.sh https://raw.githubusercontent.com/leeseed1/android-cert-gen/refs/heads/main/genkey.sh && chmod +x genkey.sh && ./genkey.sh
+
