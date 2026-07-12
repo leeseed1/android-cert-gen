@@ -18,19 +18,26 @@ fi
 TARGET_DIR="/selfsign"
 mkdir -p "$TARGET_DIR"
 
-# 临时生成服务器证书的 openssl 配置文件 (用于支持 SAN 扩展)
+# 临时生成 openssl 配置文件
+# 核心修改：在证书中同时注入服务器域名(SAN)和CA属性(CA:true)，使其能独立导入手机并生效
 CONF_FILE=$(mktemp)
 cat <<EOF > "$CONF_FILE"
 [req]
 distinguished_name = req_distinguished_name
-x509_extensions = v3_req
+x509_extensions = v3_independent
 prompt = no
+
 [req_distinguished_name]
 CN = $TARGET_HOST
-[v3_req]
-keyUsage = digitalSignature, keyEncipherment
+
+[v3_independent]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true
+keyUsage = critical, digitalSignature, keyEncipherment, cRLSign, keyCertSign
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
+
 [alt_names]
 EOF
 
@@ -42,85 +49,54 @@ else
 fi
 
 echo "--------------------------------------------------"
-echo " 正在初始化专属 CA 根证书 (手机端导入此证书) "
+echo "正在开始生成独立自签证书（支持直接导入手机），保存目录: $TARGET_DIR"
 echo "--------------------------------------------------"
 
-CA_KEY="$TARGET_DIR/MyPrivateCA.key"
-CA_CERT="$TARGET_DIR/MyPrivateCA.crt"
-
-# 生成 CA 根证书的临时配置
-CA_CONF=$(mktemp)
-cat <<EOF > "$CA_CONF"
-[req]
-distinguished_name = req_distinguished_name
-x509_extensions = v3_ca
-prompt = no
-[req_distinguished_name]
-CN = My Personal Private CA
-[v3_ca]
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid:always,issuer
-basicConstraints = critical, CA:true
-keyUsage = critical, digitalSignature, cRLSign, keyCertSign
-EOF
-
-# 生成 CA 私钥和证书 (有效期 10 年)
-openssl req -x509 -nodes -days 3650 -newkey rsa:3072 \
-  -keyout "$CA_KEY" -out "$CA_CERT" \
-  -config "$CA_CONF" 2>/dev/null
-
-echo " CA 根证书已生成 -> $CA_CERT"
-echo "--------------------------------------------------"
-echo "正在开始生成 3 种服务器证书..."
-echo "--------------------------------------------------"
-
-# ==================== 1. RSA 2048 证书 ====================
-echo "[1/3] 正在生成并签发 RSA 2048 证书..."
+# ==================== 1. 独立 RSA 2048 证书 ====================
+echo "[1/3] 正在生成独立 RSA 2048 证书..."
 RSA_KEY="$TARGET_DIR/rsa_2048.key"
-RSA_CSR=$(mktemp)
 RSA_CERT="$TARGET_DIR/rsa_2048.crt"
 
-openssl req -new -nodes -newkey rsa:2048 -keyout "$RSA_KEY" -out "$RSA_CSR" -config "$CONF_FILE" 2>/dev/null
-openssl x509 -req -days 3650 -in "$RSA_CSR" -CA "$CA_CERT" -CAkey "$CA_KEY" -CAcreateserial \
-  -out "$RSA_CERT" -extfile "$CONF_FILE" -extensions v3_req 2>/dev/null
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout "$RSA_KEY" -out "$RSA_CERT" \
+  -config "$CONF_FILE" -extensions v3_independent 2>/dev/null
 
 echo "--> RSA 2048 SHA-256 指纹:"
 openssl x509 -noout -fingerprint -sha256 -in "$RSA_CERT"
 echo ""
 
-# ==================== 2. ECDSA prime256v1 证书 ====================
-echo "[2/3] 正在生成并签发 ECDSA (prime256v1) 证书..."
+# ==================== 2. 独立 ECDSA prime256v1 证书 ====================
+echo "[2/3] 正在生成独立 ECDSA (prime256v1) 证书..."
 ECDSA_KEY="$TARGET_DIR/ecdsa_p256.key"
-ECDSA_CSR=$(mktemp)
 ECDSA_CERT="$TARGET_DIR/ecdsa_p256.crt"
 
-openssl req -new -nodes -newkey ec:<(openssl ecparam -name prime256v1) -keyout "$ECDSA_KEY" -out "$ECDSA_CSR" -config "$CONF_FILE" 2>/dev/null
-openssl x509 -req -days 3650 -in "$ECDSA_CSR" -CA "$CA_CERT" -CAkey "$CA_KEY" -CAcreateserial \
-  -out "$ECDSA_CERT" -extfile "$CONF_FILE" -extensions v3_req 2>/dev/null
+openssl req -x509 -nodes -days 3650 -newkey ec:<(openssl ecparam -name prime256v1) \
+  -keyout "$ECDSA_KEY" -out "$ECDSA_CERT" \
+  -config "$CONF_FILE" -extensions v3_independent 2>/dev/null
 
 echo "--> ECDSA prime256v1 SHA-256 指纹:"
 openssl x509 -noout -fingerprint -sha256 -in "$ECDSA_CERT"
 echo ""
 
-# ==================== 3. Ed25519 证书 ====================
-echo "[3/3] 正在生成并签发 Ed25519 证书..."
+# ==================== 3. 独立 Ed25519 证书 ====================
+echo "[3/3] 正在生成独立 Ed25519 证书..."
 ED_KEY="$TARGET_DIR/ed25519.key"
-ED_CSR=$(mktemp)
 ED_CERT="$TARGET_DIR/ed25519.crt"
 
+# 分步执行以确保老版本 OpenSSL 的兼容性，同时赋予其自签 CA 属性
 openssl genpkey -algorithm ed25519 -out "$ED_KEY" 2>/dev/null
-openssl req -new -key "$ED_KEY" -out "$ED_CSR" -config "$CONF_FILE" 2>/dev/null
-openssl x509 -req -days 3650 -in "$ED_CSR" -CA "$CA_CERT" -CAkey "$CA_KEY" -CAcreateserial \
-  -out "$ED_CERT" -extfile "$CONF_FILE" -extensions v3_req 2>/dev/null
+openssl req -x509 -nodes -days 3650 -key "$ED_KEY" -out "$ED_CERT" \
+  -config "$CONF_FILE" -extensions v3_independent 2>/dev/null
 
 echo "--> Ed25519 SHA-256 指纹:"
 openssl x509 -noout -fingerprint -sha256 -in "$ED_CERT"
 echo ""
 
-# 清理临时文件
-rm -f "$CONF_FILE" "$CA_CONF" "$RSA_CSR" "$ECDSA_CSR" "$ED_CSR" "$TARGET_DIR"/*.srl
+# 清理临时配置文件
+rm -f "$CONF_FILE"
 
 echo "--------------------------------------------------"
-echo " 恭喜！所有证书已成功签发！"
-echo " 手机端导入指南: 请下载并安装 /selfsign/MyPrivateCA.crt"
+echo "所有独立证书已成功生成！"
+echo "使用说明：如果您在 VPS 服务端配置了哪个证书，"
+echo "就请直接将对应的 .crt 文件发送到手机端导入并信任。"
 echo "--------------------------------------------------"
